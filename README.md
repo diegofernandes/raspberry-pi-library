@@ -40,20 +40,20 @@ http://makezine.com/projects/tutorial-raspberry-pi-gpio-pins-and-python/
 
 ## Installation
 
-1. Install python
+- Install python
 
 ```
 apt-get install -y python*
 ```
 
-2. Install the meccano client Library
+- Install the meccano client Library
 
 Download it from github, from
 https://github.com/meccano-iot/raspberry-pi-library
 
 Unzip the package in any directory
 
-3. Import and use in your Raspberry Pi programs
+- Import and use in your Raspberry Pi programs
 
 
 ### Mininum Meccano Program
