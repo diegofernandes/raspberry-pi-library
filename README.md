@@ -32,7 +32,9 @@ In order to use this library, you should have python-2.7 installed.
 You may also need to configure and install packages to use the RPI GPIOs. This is beyound the scope of this project, but you may find useful information here:
 
 https://www.raspberrypi.org/blog/using-the-gpio/
+
 https://www.raspberrypi.org/documentation/usage/gpio/
+
 http://makezine.com/projects/tutorial-raspberry-pi-gpio-pins-and-python/
 
 
