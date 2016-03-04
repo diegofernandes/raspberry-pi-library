@@ -93,37 +93,20 @@ def registration():
   payload = { "device" : DEVICE_ID }
   if(DEBUG):
       print json.dumps(payload)
-  headers = { "Content-type": "application/json" }
+  headers = { "Content-type": "application/json", "Accept" : "application/json" }
   conn = httplib.HTTPConnection(HOST, PORT)
-  conn.request("PUT", "/api/registration/", json.dumps(payload), headers=headers)
+  conn.request("PUT", "/api/gateway/", json.dumps(payload), headers=headers)
   response = conn.getresponse()
   data = response.read()
   if(DEBUG):
       print(data)
   print response.status, response.reason
   conn.close()
-  # if device doesn't exist, announce it for the gateway
-  # and abort
-  if data == "\"UNKNOWN_DEVICE\"":
-      print "Device is not registered to Meccano Network. Announcing it."
-      try:
-          url = "http://" + HOST + ":" + str(PORT) + "/api/registration/"
-          print url
-          req = urllib2.Request(url)
-          req.add_header('Content-Type', 'application/json')
-          payload = { "device" : DEVICE_ID }
-          if(DEBUG):
-              print json.dumps(payload)
-          response = urllib2.urlopen(req, json.dumps(payload))
-          data = response.read()
-          if(DEBUG):
-              print(data)
-      except:
-          print "Device already announced. Waiting for approve."
+  if response.status == 403:
       return False
   else:
     DEVICE_GROUP = data
-  return True
+    return True
 
 #
 #  Clock setup
