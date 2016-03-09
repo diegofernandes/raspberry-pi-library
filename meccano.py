@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os, urllib2, json, time, socket, httplib
+import native, os, urllib2, json, time, socket, httplib
 
 DEBUG = False
 
@@ -24,6 +24,7 @@ HOST = ""
 PORT = 80
 DEVICE_GROUP = "0"
 DEVICE_ID = "Unknown"
+TOKEN = ""
 START_OF_OPERATION = "0"
 CHECK_POINT = [0,0,0,0,0,0,0,0,0,0,0]
 BLOCK_SIZE = 15
@@ -52,16 +53,19 @@ def setup(ifname, host, port):
     print ""
     time.sleep(1)
     dev = device_setup(ifname);
+    if(not dev): return False
     print "Device Id: " + DEVICE_ID
     server = server_setup(host, port);
+    if (not dev): return False
     reg = registration();
-    print "Device Group: " + DEVICE_GROUP
+    if (not reg): return False
+    print "Device Group   : " + DEVICE_GROUP
+    print "Security Token : " + TOKEN
     clock = clock_setup();
+    if (not clock): return False
     print "Start of Operation: " + START_OF_OPERATION
     checkpoint(0)
-    if DEVICE_GROUP == "0":
-      print "Device Group Unknown... Setup failed"
-    return (dev and server and reg and clock);
+    return True
 
 #
 #   Get the device id for identification in Meccano Network
@@ -88,27 +92,33 @@ def server_setup(host, port):
 #  Register device in the Meccano Gateway
 #
 def registration():
-  global DEVICE_GROUP
+  global DEVICE_GROUP, TOKEN
   print "Starting Registration..."
   payload = { "device" : DEVICE_ID }
   if(DEBUG):
       print json.dumps(payload)
   headers = {
     "Content-type": "application/json",
-    "Accept" : "application/json"
+    "Accept" : "application/json",
+    "User-Agent" : "Meccano-IoT (" + native.DEVICE_NAME + ")"
   }
+  if(DEBUG):
+      print(headers)
   conn = httplib.HTTPConnection(HOST, PORT)
-  conn.request("PUT", "/api/gateway/", json.dumps(payload), headers=headers)
+  conn.request("PUT", "/api/gateway/" + DEVICE_ID, json.dumps(payload), headers=headers)
   response = conn.getresponse()
   data = response.read()
   if(DEBUG):
       print(data)
-  print response.status, response.reason
+      print response.status, response.reason
   conn.close()
-  if response.status != 200:
+  jdata = json.loads(data)
+  if (response.status != 200):
+      print("Could not register device to network...")
       return False
   else:
-    DEVICE_GROUP = data
+    DEVICE_GROUP = jdata["device_group"]
+    TOKEN = jdata["token"]
     return True
 
 #
@@ -117,21 +127,23 @@ def registration():
 def clock_setup():
     global START_OF_OPERATION
     print "Getting time from server..."
-    try:
-        conn = httplib.HTTPConnection(HOST, PORT)
-        url = "/" + DEVICE_ID
-        print "Binding " + url
-        conn.request("GET", url)
-        response = conn.getresponse()
-        data = response.read()
-        if(DEBUG):
-            print(data)
-            print response.status, response.reason
-        START_OF_OPERATION = data.strip("\n").strip("\r")
-        conn.close()
-    except:
+    # try:
+    headers = { "Accept": "application/json", "Authorization": TOKEN }
+    params = ""
+    conn = httplib.HTTPConnection(HOST, PORT)
+    conn.request("GET", "/api/gateway/" + DEVICE_ID, params, headers)
+    response = conn.getresponse()
+    data = response.read()
+    if(DEBUG):
+        print(data)
+        print response.status, response.reason
+    if (response.status != 200):
+        print("Could not get time from server...")
         return False
-    return True
+    else:
+        jdata = json.loads(data)
+        START_OF_OPERATION = str(jdata["dateTime"])
+        return True
 
 #
 #   Get the mac address
@@ -184,27 +196,31 @@ def fact_send(fact, mode):
     if not ('mode' in locals()):
         mode = MODE_PERSISTENT
     print "Sending data to Meccano Network..."
+    strfact = "[ " + fact + " ]"
+    url = "http://" + HOST + ":" + str(PORT) + "/api/gateway/" + DEVICE_ID
+    if(DEBUG):
+        print url
+    req = urllib2.Request(url)
+    req.add_header('Content-Type', 'application/json')
+    req.add_header('Authorization', TOKEN)
     try:
-        strfact = "[ " + fact + " ]"
-        url = "http://" + HOST + ":" + str(PORT) + "/" + DEVICE_ID
-        if(DEBUG):
-            print url
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
         response = urllib2.urlopen(req, strfact)
+    except urllib2.HTTPError as e:
+        print("Could not send data to server...")
+        print("Error code " + str(e.code))
+        led_status(STATUS_NO_CONNECTION)
+        if mode == MODE_PERSISTENT:
+            data_write(fact)
+        return False
+    else:
+        # 200
         data = response.read()
         if(DEBUG):
             print(data)
         print "Data sent successfully to the Meccano Gateway."
         print "Closing connection."
         led_status(STATUS_DATA_SENT);
-    except:
-        print "Connection lost..."
-        led_status(STATUS_NO_CONNECTION)
-        if mode == MODE_PERSISTENT:
-            data_write(fact)
-        return False
-    return True
+        return True
 
 #
 #   Save fact to data store
@@ -338,37 +354,42 @@ def get_id():
 #
 def messages_execute():
     print "Getting commands from server..."
-    try:
-        conn = httplib.HTTPConnection(HOST, PORT)
-        url = "/" + DEVICE_ID
-        print "Binding " + url
-        conn.request("GET", url)
-        response = conn.getresponse()
-        data = response.read()
-        if(DEBUG):
-            print response.status, response.reason
-        conn.close()
-        # Split commands in array
-        commands = data.splitlines(True)
-        # Remove the first element (TIME)
-        commands.pop(0)
-        print "Getting commands from server..."
-        customCommands = []
-        for com in commands:
-            com = com.strip("\n").strip("\r")
-            if com == "REBOOT":
-                print "### REBOOT not implemented."
-            elif com == "BLINK":
-                led_status(STATUS_BLINK)
-            elif com == "FORCE_SYNC":
-                data_sync()
-            elif com == "PURGE":
-                data_format()
-            else:
-                customCommands.append(com)
-        return customCommands
-    except:
-        return []
+    headers = {
+      "Content-type": "application/json",
+      "Accept" : "application/json",
+      "User-Agent" : "Meccano-IoT (" + native.DEVICE_NAME + ")",
+      "Authorization" : TOKEN
+    }
+    if(DEBUG):
+        print(headers)
+    conn = httplib.HTTPConnection(HOST, PORT)
+    conn.request("GET", "/api/gateway/" + DEVICE_ID, headers=headers)
+    response = conn.getresponse()
+    data = response.read()
+    if(DEBUG):
+        print data
+        print response.status, response.reason
+    conn.close()
+    # Get commands
+    jdata = json.loads(data)
+    commands = jdata["messages"]
+    if(DEBUG):
+        print commands
+    customCommands = []
+    for com in commands:
+        # com = com.strip("\n").strip("\r")
+        if com["message"] == "REBOOT":
+            print "### REBOOT not implemented."
+        elif com["message"] == "BLINK":
+            led_status(STATUS_BLINK)
+        elif com["message"] == "FORCE_SYNC":
+            data_sync()
+        elif com["message"] == "PURGE":
+            data_format()
+        else:
+            customCommands.append(com)
+    return customCommands
+
 
 #
 #   Process Messages
