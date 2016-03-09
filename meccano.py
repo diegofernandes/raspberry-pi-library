@@ -112,14 +112,14 @@ def registration():
       print(data)
       print response.status, response.reason
   conn.close()
-  jdata = json.loads(data)
   if (response.status != 200):
       print("Could not register device to network...")
       return False
   else:
-    DEVICE_GROUP = jdata["device_group"]
-    TOKEN = jdata["token"]
-    return True
+      jdata = json.loads(data)
+      DEVICE_GROUP = jdata["device_group"]
+      TOKEN = jdata["token"]
+      return True
 
 #
 #  Clock setup
