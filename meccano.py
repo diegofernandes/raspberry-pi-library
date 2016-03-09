@@ -379,7 +379,8 @@ def messages_execute():
     for com in commands:
         # com = com.strip("\n").strip("\r")
         if com["message"] == "REBOOT":
-            print "### REBOOT not implemented."
+            print "### REBOOTING ###"
+            native.reboot()
         elif com["message"] == "BLINK":
             led_status(STATUS_BLINK)
         elif com["message"] == "FORCE_SYNC":
