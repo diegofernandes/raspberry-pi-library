@@ -16,4 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
+
 DEVICE_NAME = "raspberry-pi"
+
+def reboot():
+    os.system("reboot")
