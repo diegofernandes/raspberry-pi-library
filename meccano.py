@@ -93,7 +93,10 @@ def registration():
   payload = { "device" : DEVICE_ID }
   if(DEBUG):
       print json.dumps(payload)
-  headers = { "Content-type": "application/json", "Accept" : "application/json" }
+  headers = {
+    "Content-type": "application/json",
+    "Accept" : "application/json"
+  }
   conn = httplib.HTTPConnection(HOST, PORT)
   conn.request("PUT", "/api/gateway/", json.dumps(payload), headers=headers)
   response = conn.getresponse()
@@ -102,7 +105,7 @@ def registration():
       print(data)
   print response.status, response.reason
   conn.close()
-  if response.status == 403:
+  if response.status != 200:
       return False
   else:
     DEVICE_GROUP = data
