@@ -128,7 +128,7 @@ def clock_setup():
     global START_OF_OPERATION
     print "Getting time from server..."
     # try:
-    headers = { "Accept": "application/json", "Authorization": TOKEN }
+    headers = { "Accept": "application/json", "Authorization": TOKEN , "User-Agent" : "Meccano-IoT (" + native.DEVICE_NAME + ")"}
     params = ""
     conn = httplib.HTTPConnection(HOST, PORT)
     conn.request("GET", "/api/gateway/" + DEVICE_ID, params, headers)
@@ -203,6 +203,7 @@ def fact_send(fact, mode):
     req = urllib2.Request(url)
     req.add_header('Content-Type', 'application/json')
     req.add_header('Authorization', TOKEN)
+    req.add_header("User-Agent", "Meccano-IoT (" + native.DEVICE_NAME + ")")
     try:
         response = urllib2.urlopen(req, strfact)
     except urllib2.HTTPError as e:
